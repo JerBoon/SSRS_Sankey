@@ -135,20 +135,33 @@ SELECT
   -- Left-hand step to start the curve
   'Series:{'+isnull([LeftCategory],'')+'}{'+isnull([RightCategory],'')+'}' AS [DataSeries],
   2.0 AS [XValue],
-  [LeftY1Value] AS [Y1Value],
-  [LeftY2Value] AS [Y2Value],
-  [LeftCategoryLabel] AS [Label]
+  [LeftY1Value]+([RightY1Value]-[LeftY1Value])/10.0 AS [Y1Value],
+  [LeftY2Value]+([RightY2Value]-[LeftY2Value])/10.0 AS [Y2Value],
+  null AS [Label]
 FROM
  [SankeySeries]
+
 UNION ALL
 
 SELECT
   -- Right-hand step to end the curve
   'Series:{'+isnull([LeftCategory],'')+'}{'+isnull([RightCategory],'')+'}' AS [DataSeries],
   4.0 AS [XValue],
-  [RightY1Value] AS [Y1Value],
-  [RightY2Value] AS [Y2Value],
-  [RightCategoryLabel] AS [Label]
+  [RightY1Value]-([RightY1Value]-[LeftY1Value])/10.0 AS [Y1Value],
+  [RightY2Value]-([RightY2Value]-[LeftY2Value])/10.0 AS [Y2Value],
+  null AS [Label]
+FROM
+ [SankeySeries]
+
+UNION ALL
+
+SELECT
+  -- And a point for the middle of the range
+  'Series:{'+isnull([LeftCategory],'')+'}{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  3.0 AS [XValue],
+  ([LeftY1Value]+[RightY1Value])/2.0 AS [Y1Value],
+  ([LeftY2Value]+[RightY2Value])/2.0 AS [Y2Value],
+  null AS [Label]
 FROM
  [SankeySeries]
 
@@ -213,7 +226,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>Make it a little curvier..</Value>
+                    <Value>Adjusting the curve.</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -231,7 +244,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Altered the SQL query to bring back a couple of intermediate point to plot to start to make a curve</Value>
+                    <Value>- I've added a mid-point as the average of the two end values</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -240,16 +253,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Went back and change the category axis to a scalar axis</Value>
-                    <Style />
-                  </TextRun>
-                </TextRuns>
-                <Style />
-              </Paragraph>
-              <Paragraph>
-                <TextRuns>
-                  <TextRun>
-                    <Value>- Remembered to change the chart type from area, to curved area chart</Value>
+                    <Value>- Start the curve by setting the 2 intermediate end points to be 10% of the Y distance between the end points.</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -267,7 +271,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>It looks like it's geting there, but clearly we need to make a few changes yet. I've included a second copy of the chart below without the curve so you can see the data points we're using...</Value>
+                    <Value>This represents the best solution I've yet found for producing a nice looking curve which does the job and by plotting as few intermediate points as possible. This might be one place for any git collaberators to experiment some more in order to make nicer looking curves?</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
