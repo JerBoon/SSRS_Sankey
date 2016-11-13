@@ -187,17 +187,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>This is the first cut of something which maybe starts to look a </Value>
-                    <Style />
-                  </TextRun>
-                  <TextRun>
-                    <Value>bit</Value>
-                    <Style>
-                      <FontStyle>Italic</FontStyle>
-                    </Style>
-                  </TextRun>
-                  <TextRun>
-                    <Value> like a Sankey diagram!</Value>
+                    <Value>This is the seond cut, which hopefully definitely now starts resemble the makings a Sankey diagram.</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -215,7 +205,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>It's a bog-standard Area Chart, created with 4 drag and drop operations, and plotting:</Value>
+                    <Value>All I've changed for this edit are:</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -224,7 +214,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Series Groups = &lt;DataSeries&gt;</Value>
+                    <Value>- Deleted the legend. We won't be needing that.</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -233,7 +223,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Category Groups = &lt;XValue&gt;</Value>
+                    <Value>- Set the series color as a standard set color. Also set the color as slightly transparent, which will make the series look nicer when the overlap</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -242,7 +232,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Values, Low = &lt;Y1Value&gt;</Value>
+                    <Value>- Removed the axis from the display</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -251,7 +241,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>- Values, High = &lt;Y2Value&gt;</Value>
+                    <Value>- Changed the chart type from an Area Chart, to a Curved Area Chart. This shows up our first problem - since we're only plotting the left-most and right-most values for each series, the curve algorithm can't infer any curvature. For this we'll need to revisit the SQL and return a little more data...</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -261,15 +251,6 @@ DROP TABLE #sales_summary;</CommandText>
                 <TextRuns>
                   <TextRun>
                     <Value />
-                    <Style />
-                  </TextRun>
-                </TextRuns>
-                <Style />
-              </Paragraph>
-              <Paragraph>
-                <TextRuns>
-                  <TextRun>
-                    <Value>But we can do a little bit more work to make it look a little nicer!</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -279,7 +260,7 @@ DROP TABLE #sales_summary;</CommandText>
             <rd:DefaultName>Textbox9</rd:DefaultName>
             <Top>0mm</Top>
             <Left>0mm</Left>
-            <Height>57.29742mm</Height>
+            <Height>60.38145mm</Height>
             <Width>134.77033mm</Width>
             <Style>
               <Border>
@@ -338,7 +319,9 @@ DROP TABLE #sales_summary;</CommandText>
                       <ChartDataLabel>
                         <Style />
                       </ChartDataLabel>
-                      <Style />
+                      <Style>
+                        <Color>#bfdda0dd</Color>
+                      </Style>
                       <ChartMarker>
                         <Style />
                       </ChartMarker>
@@ -369,6 +352,7 @@ DROP TABLE #sales_summary;</CommandText>
               <ChartArea Name="Default">
                 <ChartCategoryAxes>
                   <ChartAxis Name="Primary">
+                    <Visible>False</Visible>
                     <Style>
                       <FontSize>8pt</FontSize>
                     </Style>
@@ -444,6 +428,7 @@ DROP TABLE #sales_summary;</CommandText>
                 </ChartCategoryAxes>
                 <ChartValueAxes>
                   <ChartAxis Name="Primary">
+                    <Visible>False</Visible>
                     <Style>
                       <FontSize>8pt</FontSize>
                     </Style>
@@ -520,27 +505,9 @@ DROP TABLE #sales_summary;</CommandText>
                 </Style>
               </ChartArea>
             </ChartAreas>
-            <ChartLegends>
-              <ChartLegend Name="Default">
-                <Style>
-                  <BackgroundGradientType>None</BackgroundGradientType>
-                  <FontSize>8pt</FontSize>
-                </Style>
-                <ChartLegendTitle>
-                  <Caption />
-                  <Style>
-                    <FontSize>8pt</FontSize>
-                    <FontWeight>Bold</FontWeight>
-                    <TextAlign>Center</TextAlign>
-                  </Style>
-                </ChartLegendTitle>
-                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
-                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
-              </ChartLegend>
-            </ChartLegends>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Chart Title</Caption>
+                <Caption>Proto- Sankey Chart?</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontWeight>Bold</FontWeight>
@@ -568,8 +535,8 @@ DROP TABLE #sales_summary;</CommandText>
             <DataSetName>DataSet1</DataSetName>
             <Top>62.14533mm</Top>
             <Left>0mm</Left>
-            <Height>73.28333mm</Height>
-            <Width>156.45992mm</Width>
+            <Height>96.0375mm</Height>
+            <Width>173.12867mm</Width>
             <ZIndex>1</ZIndex>
             <Style>
               <Border>
@@ -581,14 +548,14 @@ DROP TABLE #sales_summary;</CommandText>
             </Style>
           </Chart>
         </ReportItems>
-        <Height>138.60367mm</Height>
+        <Height>158.18283mm</Height>
         <Style>
           <Border>
             <Style>None</Style>
           </Border>
         </Style>
       </Body>
-      <Width>156.45992mm</Width>
+      <Width>173.12867mm</Width>
       <Page>
         <PageFooter>
           <Height>11.43mm</Height>
