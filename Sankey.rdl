@@ -16,7 +16,10 @@
     <DataSet Name="DataSet1">
       <Query>
         <DataSourceName>DataSource1</DataSourceName>
-        <CommandText>-- This is a basic 2 dimensional matrix of bike sales
+        <CommandText>DECLARE @SeriesColor VARCHAR(10) = '#bfdda0dd';
+
+
+-- This is a basic 2 dimensional matrix of bike sales
 -- by Geographical Region and bike type
 -- It's a fairly complicated query with various tables joined,
 -- so to make it ready for the next part of the code, let's run the
@@ -113,7 +116,8 @@ SELECT
   1.0 AS [XValue],
   [LeftY1Value] AS [Y1Value],
   [LeftY2Value] AS [Y2Value],
-  [LeftCategoryLabel] AS [Label]
+  null AS [Label],
+  @SeriesColor AS [SeriesColor]
 FROM
  [SankeySeries]
 
@@ -125,7 +129,8 @@ SELECT
   5.0 AS [XValue],
   [RightY1Value] AS [Y1Value],
   [RightY2Value] AS [Y2Value],
-  [RightCategoryLabel] AS [Label]
+  null AS [Label],
+  @SeriesColor AS [SeriesColor]
 FROM
  [SankeySeries]
 
@@ -137,7 +142,8 @@ SELECT
   2.0 AS [XValue],
   [LeftY1Value]+([RightY1Value]-[LeftY1Value])/10.0 AS [Y1Value],
   [LeftY2Value]+([RightY2Value]-[LeftY2Value])/10.0 AS [Y2Value],
-  null AS [Label]
+  null AS [Label],
+  @SeriesColor AS [SeriesColor]
 FROM
  [SankeySeries]
 
@@ -149,7 +155,8 @@ SELECT
   4.0 AS [XValue],
   [RightY1Value]-([RightY1Value]-[LeftY1Value])/10.0 AS [Y1Value],
   [RightY2Value]-([RightY2Value]-[LeftY2Value])/10.0 AS [Y2Value],
-  null AS [Label]
+  null AS [Label],
+  @SeriesColor AS [SeriesColor]
 FROM
  [SankeySeries]
 
@@ -161,9 +168,99 @@ SELECT
   3.0 AS [XValue],
   ([LeftY1Value]+[RightY1Value])/2.0 AS [Y1Value],
   ([LeftY2Value]+[RightY2Value])/2.0 AS [Y2Value],
-  null AS [Label]
+  null AS [Label],
+  @SeriesColor AS [SeriesColor]
 FROM
  [SankeySeries]
+
+----
+-- Plot the "end zones"
+-- Plot these as a single series for each colsolidated category.
+
+UNION ALL
+
+SELECT
+  -- Left-hand end point for the series
+  'EndZone1:{'+isnull([LeftCategory],'')+'}' AS [DataSeries],
+  0.5 AS [XValue],
+  min([LeftY1Value]) AS [Y1Value],
+  max([LeftY2Value]) AS [Y2Value],
+  null AS [Label],
+  '#e0e0e0' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [LeftCategory], [LeftCategoryLabel]
+
+UNION ALL
+
+SELECT
+  -- Left-hand end point for the series
+  'EndZone1:{'+isnull([LeftCategory],'')+'}' AS [DataSeries],
+  1.0 AS [XValue],
+  min([LeftY1Value]) AS [Y1Value],
+  max([LeftY2Value]) AS [Y2Value],
+  null AS [Label],
+  '#e0e0e0' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [LeftCategory], [LeftCategoryLabel]
+
+UNION ALL
+
+SELECT
+  -- Left-hand end point for the series
+  'EndZone2:{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  5.0 AS [XValue],
+  min([RightY1Value]) AS [Y1Value],
+  max([RightY2Value]) AS [Y2Value],
+  null AS [Label],
+  '#e0e0e0' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [RightCategory], [RightCategoryLabel]
+
+UNION ALL
+
+SELECT
+  -- Left-hand end point for the series
+  'EndZone2:{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  5.5 AS [XValue],
+  min([RightY1Value]) AS [Y1Value],
+  max([RightY2Value]) AS [Y2Value],
+  null AS [Label],
+  '#e0e0e0' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [RightCategory], [RightCategoryLabel]
+
+----
+-- Plot end zone labels separately. Have finer control that way
+
+UNION ALL
+
+SELECT
+  'Label1:{'+isnull([LeftCategory],'')+'}' AS [DataSeries],
+  0.75 AS [XValue],
+  max([LeftY2Value])-(max([LeftY2Value])-min([LeftY1Value]))/2.0 AS [Y1Value],
+  max([LeftY2Value])-(max([LeftY2Value])-min([LeftY1Value]))/2.0 AS [Y2Value],
+  [LeftCategoryLabel] AS [Label],
+  '#ff0000' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [LeftCategory], [LeftCategoryLabel]
+
+UNION ALL
+
+SELECT
+  'Label2:{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  5.25 AS [XValue],
+  max([RightY2Value])-(max([RightY2Value])-min([RightY1Value]))/2.0 AS [Y1Value],
+  max([RightY2Value])-(max([RightY2Value])-min([RightY1Value]))/2.0 AS [Y2Value],
+  [RightCategoryLabel] AS [Label],
+  '#ff0000' AS [SeriesColor]
+FROM
+ [SankeySeries]
+GROUP BY [RightCategory], [RightCategoryLabel]
 
 ;
 
@@ -192,6 +289,10 @@ DROP TABLE #sales_summary;</CommandText>
         </Field>
         <Field Name="Label">
           <DataField>Label</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="SeriesColor">
+          <DataField>SeriesColor</DataField>
           <rd:TypeName>System.String</rd:TypeName>
         </Field>
       </Fields>
@@ -226,7 +327,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>** The Labels Problem **</Value>
+                    <Value>Labels and Category Regions </Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -244,7 +345,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>Here's the deal with labels. You only want to display one per group at each end of the curve. And preferably somewhere the centre of the end zone.</Value>
+                    <Value>Have added to the query to return a series for each of the 7 (4 regions, and 3 bike types) grey category markers which go at either end of curves. Also 7 series to plot the labels in a nice position relative to each of these. </Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -262,7 +363,7 @@ DROP TABLE #sales_summary;</CommandText>
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>I've switched on basic labels, but not changed anything else, so as to demonstrate some of the problems.</Value>
+                    <Value>This is essentially the finished article. Although there are various stylistic considerations we could think about to make it really stand out...</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -272,7 +373,7 @@ DROP TABLE #sales_summary;</CommandText>
             <rd:DefaultName>Textbox9</rd:DefaultName>
             <Top>0mm</Top>
             <Left>0mm</Left>
-            <Height>60.38145mm</Height>
+            <Height>44.50644mm</Height>
             <Width>134.77033mm</Width>
             <Style>
               <Border>
@@ -313,6 +414,7 @@ DROP TABLE #sales_summary;</CommandText>
                   <SortExpressions>
                     <SortExpression>
                       <Value>=Fields!DataSeries.Value</Value>
+                      <Direction>Descending</Direction>
                     </SortExpression>
                   </SortExpressions>
                   <Label>=Fields!DataSeries.Value</Label>
@@ -325,16 +427,18 @@ DROP TABLE #sales_summary;</CommandText>
                   <ChartDataPoints>
                     <ChartDataPoint>
                       <ChartDataPointValues>
+                        <X>=Fields!XValue.Value</X>
                         <High>=Fields!Y2Value.Value</High>
                         <Low>=Fields!Y1Value.Value</Low>
                       </ChartDataPointValues>
                       <ChartDataLabel>
                         <Style />
                         <Label>=Fields!Label.Value</Label>
-                        <Visible>true</Visible>
+                        <Visible>=(len(Fields!Label.Value) &gt; 0)</Visible>
+                        <Position>Center</Position>
                       </ChartDataLabel>
                       <Style>
-                        <Color>#bfdda0dd</Color>
+                        <Color>=Fields!SeriesColor.Value</Color>
                       </Style>
                       <ChartMarker>
                         <Style />
@@ -357,6 +461,7 @@ DROP TABLE #sales_summary;</CommandText>
                   <ValueAxisName>Primary</ValueAxisName>
                   <CategoryAxisName>Primary</CategoryAxisName>
                   <ChartSmartLabel>
+                    <Disabled>true</Disabled>
                     <CalloutLineColor>Black</CalloutLineColor>
                     <MinMovingDistance>0pt</MinMovingDistance>
                   </ChartSmartLabel>
@@ -517,13 +622,14 @@ DROP TABLE #sales_summary;</CommandText>
                   </ChartAxis>
                 </ChartValueAxes>
                 <Style>
+                  <BackgroundColor>#00ffffff</BackgroundColor>
                   <BackgroundGradientType>None</BackgroundGradientType>
                 </Style>
               </ChartArea>
             </ChartAreas>
             <ChartTitles>
               <ChartTitle Name="Default">
-                <Caption>Proto- Sankey Chart?</Caption>
+                <Caption>Bicycle Sales by Region</Caption>
                 <Style>
                   <BackgroundGradientType>None</BackgroundGradientType>
                   <FontWeight>Bold</FontWeight>
@@ -549,7 +655,7 @@ DROP TABLE #sales_summary;</CommandText>
               </Style>
             </ChartNoDataMessage>
             <DataSetName>DataSet1</DataSetName>
-            <Top>62.14533mm</Top>
+            <Top>46.27033mm</Top>
             <Left>0mm</Left>
             <Height>96.0375mm</Height>
             <Width>173.12867mm</Width>
