@@ -16,9 +16,15 @@
     <DataSet Name="DataSet1">
       <Query>
         <DataSourceName>DataSource1</DataSourceName>
-        <CommandText>SELECT
+        <CommandText>-- This is a basic 2 dimensional matrix of bike sales
+-- by Geographical Region and bike type
+-- It's a fairly complicated query with various tables joined,
+-- so to make it ready for the next part of the code, let's run the
+-- query and save the results (it'll be a dozen rows or so) to a 
+-- temporary table
+SELECT
   p.[ProductSubCategoryID],
-  ps.[Name] AS [ProductSubCategorName],
+  ps.[Name] AS [ProductSubCategoryName],
   CASE
     WHEN st.[CountryRegionCode] = 'US' THEN 'US'
     WHEN st.[Group] = 'North America' THEN st.[Name]
@@ -26,6 +32,7 @@
 	END AS [RegionName],
   sum(sod.[OrderQty]) AS [TotOrderQty],
   sum(sod.[LineTotal]) AS [TotSalesValue]
+INTO #sales_summary
 FROM
   [AdventureWorks2012].[Sales].[SalesOrderHeader] AS soh
   JOIN [AdventureWorks2012].[Sales].SalesTerritory AS st
@@ -48,30 +55,105 @@ GROUP BY
     WHEN st.[CountryRegionCode] = 'US' THEN 'US'
     WHEN st.[Group] = 'North America' THEN st.[Name]
 	ELSE st.[Group]
-	END
-ORDER BY 1, 4 desc
-</CommandText>
+	END;
+
+
+-------------------------------------------------------------------
+-- So let's sankey-fy this data.
+-- Basically, we need to sort the sales by each of the 2 dimensions,
+-- then "stack" the total sales to calculate to y-axis coordnates to plot
+-- for the ends of each series 
+
+WITH [SankeySeries] AS
+(
+  SELECT
+    [LeftCategory],
+    [LeftCategoryLabel],
+    [RightCategory],
+    [RightCategoryLabel],
+    [MetricValue],
+	SUM([MetricValue]) OVER (ORDER BY [LeftCategory],[RightCategory])
+	   - [MetricValue]
+	   + (DENSE_RANK() OVER (ORDER BY [LeftCategory]) - 1) * 10.0
+	   AS [LeftY1Value],
+	SUM([MetricValue]) OVER (ORDER BY [LeftCategory],[RightCategory])
+	   + (DENSE_RANK() OVER (ORDER BY [LeftCategory]) - 1) * 10.0
+	   AS [LeftY2Value],
+	SUM([MetricValue]) OVER (ORDER BY [RightCategory],[LeftCategory])
+	   - [MetricValue]
+	   + (DENSE_RANK() OVER (ORDER BY [RightCategory]) - 1) * 10.0
+	   AS [RightY1Value],
+	SUM([MetricValue]) OVER (ORDER BY [RightCategory],[LeftCategory])
+	   + (DENSE_RANK() OVER (ORDER BY [RightCategory]) - 1) * 10.0
+	   AS [RightY2Value]
+  FROM (
+    -- Standardise the data into a list of the a left category and label,
+	-- a corresponding right category and label,
+	-- and so as to make the layout easier to work with convert our metric
+	-- in to a percentage of the total rather than absolute value
+    SELECT 
+      [RegionName] AS [LeftCategory],
+      [RegionName] AS [LeftCategoryLabel],
+      [ProductSubCategoryName] AS [RightCategory],
+      [ProductSubCategoryName] AS [RightCategoryLabel],
+      -- Normalise the metric as a percentage of the total 
+	  [TotOrderQty]
+	     * 100.0
+	     / sum([TotOrderQty]) OVER (PARTITION BY 1)
+		 AS [MetricValue]
+    FROM
+      #sales_summary) as [Data]
+)
+-----
+-- Now select that back as some data which'll plot as an SSRS area chart.
+
+SELECT
+  'Series:{'+isnull([LeftCategory],'')+'}{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  1.0 AS [XValue],
+  [LeftY1Value] AS [Y1Value],
+  [LeftY2Value] AS [Y2Value],
+  [LeftCategoryLabel] AS [Label]
+FROM
+ [SankeySeries]
+
+UNION ALL
+
+SELECT
+  'Series:{'+isnull([LeftCategory],'')+'}{'+isnull([RightCategory],'')+'}' AS [DataSeries],
+  5.0 AS [XValue],
+  [RightY1Value] AS [Y1Value],
+  [RightY2Value] AS [Y2Value],
+  [RightCategoryLabel] AS [Label]
+FROM
+ [SankeySeries]
+;
+
+
+-------------------------------------------------------------------
+-- clean up
+DROP TABLE #sales_summary;</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
       </Query>
       <Fields>
-        <Field Name="ProductSubCategoryID">
-          <DataField>ProductSubCategoryID</DataField>
-          <rd:TypeName>System.Int32</rd:TypeName>
-        </Field>
-        <Field Name="ProductSubCategorName">
-          <DataField>ProductSubCategorName</DataField>
+        <Field Name="DataSeries">
+          <DataField>DataSeries</DataField>
           <rd:TypeName>System.String</rd:TypeName>
         </Field>
-        <Field Name="RegionName">
-          <DataField>RegionName</DataField>
-          <rd:TypeName>System.String</rd:TypeName>
-        </Field>
-        <Field Name="TotOrderQty">
-          <DataField>TotOrderQty</DataField>
-          <rd:TypeName>System.Int32</rd:TypeName>
-        </Field>
-        <Field Name="TotSalesValue">
-          <DataField>TotSalesValue</DataField>
+        <Field Name="XValue">
+          <DataField>XValue</DataField>
           <rd:TypeName>System.Decimal</rd:TypeName>
+        </Field>
+        <Field Name="Y1Value">
+          <DataField>Y1Value</DataField>
+          <rd:TypeName>System.Decimal</rd:TypeName>
+        </Field>
+        <Field Name="Y2Value">
+          <DataField>Y2Value</DataField>
+          <rd:TypeName>System.Decimal</rd:TypeName>
+        </Field>
+        <Field Name="Label">
+          <DataField>Label</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
         </Field>
       </Fields>
     </DataSet>
@@ -96,7 +178,7 @@ ORDER BY 1, 4 desc
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>Display the same data as a basic matrix table of data. </Value>
+                    <Value />
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -105,7 +187,17 @@ ORDER BY 1, 4 desc
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>The beginnings of a heatmap maybe? (that's for another day!)</Value>
+                    <Value>This is the first cut of something which maybe starts to look a </Value>
+                    <Style />
+                  </TextRun>
+                  <TextRun>
+                    <Value>bit</Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                    </Style>
+                  </TextRun>
+                  <TextRun>
+                    <Value> like a Sankey diagram!</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -123,7 +215,61 @@ ORDER BY 1, 4 desc
               <Paragraph>
                 <TextRuns>
                   <TextRun>
-                    <Value>It's a nice little table, but we can visualize this better...</Value>
+                    <Value>It's a bog-standard Area Chart, created with 4 drag and drop operations, and plotting:</Value>
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>- Series Groups = &lt;DataSeries&gt;</Value>
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>- Category Groups = &lt;XValue&gt;</Value>
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>- Values, Low = &lt;Y1Value&gt;</Value>
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>- Values, High = &lt;Y2Value&gt;</Value>
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value />
+                    <Style />
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>But we can do a little bit more work to make it look a little nicer!</Value>
                     <Style />
                   </TextRun>
                 </TextRuns>
@@ -133,8 +279,8 @@ ORDER BY 1, 4 desc
             <rd:DefaultName>Textbox9</rd:DefaultName>
             <Top>0mm</Top>
             <Left>0mm</Left>
-            <Height>22.37242mm</Height>
-            <Width>131.59533mm</Width>
+            <Height>57.29742mm</Height>
+            <Width>134.77033mm</Width>
             <Style>
               <Border>
                 <Style>None</Style>
@@ -145,206 +291,304 @@ ORDER BY 1, 4 desc
               <PaddingBottom>2pt</PaddingBottom>
             </Style>
           </Textbox>
-          <Tablix Name="Tablix2">
-            <TablixCorner>
-              <TablixCornerRows>
-                <TablixCornerRow>
-                  <TablixCornerCell>
-                    <CellContents>
-                      <Textbox Name="Textbox13">
-                        <CanGrow>true</CanGrow>
-                        <KeepTogether>true</KeepTogether>
-                        <Paragraphs>
-                          <Paragraph>
-                            <TextRuns>
-                              <TextRun>
-                                <Value>Bike Sales</Value>
-                                <Style />
-                              </TextRun>
-                            </TextRuns>
-                            <Style />
-                          </Paragraph>
-                        </Paragraphs>
-                        <rd:DefaultName>Textbox13</rd:DefaultName>
-                        <Style>
-                          <Border>
-                            <Color>LightGrey</Color>
-                            <Style>Solid</Style>
-                          </Border>
-                          <PaddingLeft>2pt</PaddingLeft>
-                          <PaddingRight>2pt</PaddingRight>
-                          <PaddingTop>2pt</PaddingTop>
-                          <PaddingBottom>2pt</PaddingBottom>
-                        </Style>
-                      </Textbox>
-                    </CellContents>
-                  </TablixCornerCell>
-                </TablixCornerRow>
-              </TablixCornerRows>
-            </TablixCorner>
-            <TablixBody>
-              <TablixColumns>
-                <TablixColumn>
-                  <Width>19.44375mm</Width>
-                </TablixColumn>
-              </TablixColumns>
-              <TablixRows>
-                <TablixRow>
-                  <Height>6mm</Height>
-                  <TablixCells>
-                    <TablixCell>
-                      <CellContents>
-                        <Textbox Name="TotOrderQty1">
-                          <CanGrow>true</CanGrow>
-                          <KeepTogether>true</KeepTogether>
-                          <Paragraphs>
-                            <Paragraph>
-                              <TextRuns>
-                                <TextRun>
-                                  <Value>=Fields!TotOrderQty.Value</Value>
-                                  <Style />
-                                </TextRun>
-                              </TextRuns>
-                              <Style>
-                                <TextAlign>Center</TextAlign>
-                              </Style>
-                            </Paragraph>
-                          </Paragraphs>
-                          <rd:DefaultName>TotOrderQty1</rd:DefaultName>
-                          <Style>
-                            <Border>
-                              <Color>LightGrey</Color>
-                              <Style>Solid</Style>
-                            </Border>
-                            <PaddingLeft>2pt</PaddingLeft>
-                            <PaddingRight>2pt</PaddingRight>
-                            <PaddingTop>2pt</PaddingTop>
-                            <PaddingBottom>2pt</PaddingBottom>
-                          </Style>
-                        </Textbox>
-                      </CellContents>
-                    </TablixCell>
-                  </TablixCells>
-                </TablixRow>
-              </TablixRows>
-            </TablixBody>
-            <TablixColumnHierarchy>
-              <TablixMembers>
-                <TablixMember>
-                  <Group Name="RegionName">
+          <Chart Name="Chart1">
+            <ChartCategoryHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart1_CategoryGroup">
                     <GroupExpressions>
-                      <GroupExpression>=Fields!RegionName.Value</GroupExpression>
+                      <GroupExpression>=Fields!XValue.Value</GroupExpression>
                     </GroupExpressions>
                   </Group>
                   <SortExpressions>
                     <SortExpression>
-                      <Value>=Fields!RegionName.Value</Value>
+                      <Value>=Fields!XValue.Value</Value>
                     </SortExpression>
                   </SortExpressions>
-                  <TablixHeader>
-                    <Size>6mm</Size>
-                    <CellContents>
-                      <Textbox Name="RegionName1">
-                        <CanGrow>true</CanGrow>
-                        <KeepTogether>true</KeepTogether>
-                        <Paragraphs>
-                          <Paragraph>
-                            <TextRuns>
-                              <TextRun>
-                                <Value>=Fields!RegionName.Value</Value>
-                                <Style />
-                              </TextRun>
-                            </TextRuns>
-                            <Style>
-                              <TextAlign>Center</TextAlign>
-                            </Style>
-                          </Paragraph>
-                        </Paragraphs>
-                        <rd:DefaultName>RegionName1</rd:DefaultName>
-                        <Style>
-                          <Border>
-                            <Color>LightGrey</Color>
-                            <Style>Solid</Style>
-                          </Border>
-                          <PaddingLeft>2pt</PaddingLeft>
-                          <PaddingRight>2pt</PaddingRight>
-                          <PaddingTop>2pt</PaddingTop>
-                          <PaddingBottom>2pt</PaddingBottom>
-                        </Style>
-                      </Textbox>
-                    </CellContents>
-                  </TablixHeader>
-                </TablixMember>
-              </TablixMembers>
-            </TablixColumnHierarchy>
-            <TablixRowHierarchy>
-              <TablixMembers>
-                <TablixMember>
-                  <Group Name="ProductSubCategorName">
+                  <Label>=Fields!XValue.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartCategoryHierarchy>
+            <ChartSeriesHierarchy>
+              <ChartMembers>
+                <ChartMember>
+                  <Group Name="Chart1_SeriesGroup">
                     <GroupExpressions>
-                      <GroupExpression>=Fields!ProductSubCategorName.Value</GroupExpression>
+                      <GroupExpression>=Fields!DataSeries.Value</GroupExpression>
                     </GroupExpressions>
                   </Group>
                   <SortExpressions>
                     <SortExpression>
-                      <Value>=Fields!ProductSubCategorName.Value</Value>
+                      <Value>=Fields!DataSeries.Value</Value>
                     </SortExpression>
                   </SortExpressions>
-                  <TablixHeader>
-                    <Size>31.61458mm</Size>
-                    <CellContents>
-                      <Textbox Name="ProductSubCategorName1">
-                        <CanGrow>true</CanGrow>
-                        <KeepTogether>true</KeepTogether>
-                        <Paragraphs>
-                          <Paragraph>
-                            <TextRuns>
-                              <TextRun>
-                                <Value>=Fields!ProductSubCategorName.Value</Value>
-                                <Style />
-                              </TextRun>
-                            </TextRuns>
-                            <Style />
-                          </Paragraph>
-                        </Paragraphs>
-                        <rd:DefaultName>ProductSubCategorName1</rd:DefaultName>
-                        <Style>
-                          <Border>
-                            <Color>LightGrey</Color>
-                            <Style>Solid</Style>
-                          </Border>
-                          <PaddingLeft>2pt</PaddingLeft>
-                          <PaddingRight>2pt</PaddingRight>
-                          <PaddingTop>2pt</PaddingTop>
-                          <PaddingBottom>2pt</PaddingBottom>
-                        </Style>
-                      </Textbox>
-                    </CellContents>
-                  </TablixHeader>
-                </TablixMember>
-              </TablixMembers>
-            </TablixRowHierarchy>
+                  <Label>=Fields!DataSeries.Value</Label>
+                </ChartMember>
+              </ChartMembers>
+            </ChartSeriesHierarchy>
+            <ChartData>
+              <ChartSeriesCollection>
+                <ChartSeries Name="Y2Value">
+                  <ChartDataPoints>
+                    <ChartDataPoint>
+                      <ChartDataPointValues>
+                        <High>=Fields!Y2Value.Value</High>
+                        <Low>=Fields!Y1Value.Value</Low>
+                      </ChartDataPointValues>
+                      <ChartDataLabel>
+                        <Style />
+                      </ChartDataLabel>
+                      <Style />
+                      <ChartMarker>
+                        <Style />
+                      </ChartMarker>
+                      <DataElementOutput>Output</DataElementOutput>
+                    </ChartDataPoint>
+                  </ChartDataPoints>
+                  <Type>Range</Type>
+                  <Style />
+                  <ChartEmptyPoints>
+                    <Style />
+                    <ChartMarker>
+                      <Style />
+                    </ChartMarker>
+                    <ChartDataLabel>
+                      <Style />
+                    </ChartDataLabel>
+                  </ChartEmptyPoints>
+                  <ValueAxisName>Primary</ValueAxisName>
+                  <CategoryAxisName>Primary</CategoryAxisName>
+                  <ChartSmartLabel>
+                    <CalloutLineColor>Black</CalloutLineColor>
+                    <MinMovingDistance>0pt</MinMovingDistance>
+                  </ChartSmartLabel>
+                </ChartSeries>
+              </ChartSeriesCollection>
+            </ChartData>
+            <ChartAreas>
+              <ChartArea Name="Default">
+                <ChartCategoryAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <FontSize>8pt</FontSize>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption>Axis Title</Caption>
+                      <Style>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMinorTickMarks>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <FontSize>8pt</FontSize>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption>Axis Title</Caption>
+                      <Style>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Enabled>False</Enabled>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMinorTickMarks>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                  <ChartAxis Name="Primary">
+                    <Style>
+                      <FontSize>8pt</FontSize>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption>Axis Title</Caption>
+                      <Style>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMinorTickMarks>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                  <ChartAxis Name="Secondary">
+                    <Style>
+                      <FontSize>8pt</FontSize>
+                    </Style>
+                    <ChartAxisTitle>
+                      <Caption>Axis Title</Caption>
+                      <Style>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </ChartAxisTitle>
+                    <ChartMajorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                        </Border>
+                      </Style>
+                    </ChartMajorGridLines>
+                    <ChartMinorGridLines>
+                      <Style>
+                        <Border>
+                          <Color>Gainsboro</Color>
+                          <Style>Dotted</Style>
+                        </Border>
+                      </Style>
+                    </ChartMinorGridLines>
+                    <ChartMinorTickMarks>
+                      <Length>0.5</Length>
+                    </ChartMinorTickMarks>
+                    <CrossAt>NaN</CrossAt>
+                    <Location>Opposite</Location>
+                    <Minimum>NaN</Minimum>
+                    <Maximum>NaN</Maximum>
+                    <ChartAxisScaleBreak>
+                      <Style />
+                    </ChartAxisScaleBreak>
+                  </ChartAxis>
+                </ChartValueAxes>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                </Style>
+              </ChartArea>
+            </ChartAreas>
+            <ChartLegends>
+              <ChartLegend Name="Default">
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontSize>8pt</FontSize>
+                </Style>
+                <ChartLegendTitle>
+                  <Caption />
+                  <Style>
+                    <FontSize>8pt</FontSize>
+                    <FontWeight>Bold</FontWeight>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </ChartLegendTitle>
+                <HeaderSeparatorColor>Black</HeaderSeparatorColor>
+                <ColumnSeparatorColor>Black</ColumnSeparatorColor>
+              </ChartLegend>
+            </ChartLegends>
+            <ChartTitles>
+              <ChartTitle Name="Default">
+                <Caption>Chart Title</Caption>
+                <Style>
+                  <BackgroundGradientType>None</BackgroundGradientType>
+                  <FontWeight>Bold</FontWeight>
+                  <TextAlign>General</TextAlign>
+                  <VerticalAlign>Top</VerticalAlign>
+                </Style>
+              </ChartTitle>
+            </ChartTitles>
+            <Palette>BrightPastel</Palette>
+            <ChartBorderSkin>
+              <Style>
+                <BackgroundColor>Gray</BackgroundColor>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <Color>White</Color>
+              </Style>
+            </ChartBorderSkin>
+            <ChartNoDataMessage Name="NoDataMessage">
+              <Caption>No Data Available</Caption>
+              <Style>
+                <BackgroundGradientType>None</BackgroundGradientType>
+                <TextAlign>General</TextAlign>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </ChartNoDataMessage>
             <DataSetName>DataSet1</DataSetName>
-            <Top>26.69117mm</Top>
+            <Top>62.14533mm</Top>
             <Left>0mm</Left>
-            <Height>12mm</Height>
-            <Width>51.05833mm</Width>
+            <Height>73.28333mm</Height>
+            <Width>156.45992mm</Width>
             <ZIndex>1</ZIndex>
             <Style>
               <Border>
-                <Style>None</Style>
+                <Color>LightGrey</Color>
+                <Style>Solid</Style>
               </Border>
+              <BackgroundColor>White</BackgroundColor>
+              <BackgroundGradientType>None</BackgroundGradientType>
             </Style>
-          </Tablix>
+          </Chart>
         </ReportItems>
-        <Height>38.69117mm</Height>
+        <Height>138.60367mm</Height>
         <Style>
           <Border>
             <Style>None</Style>
           </Border>
         </Style>
       </Body>
-      <Width>152.4mm</Width>
+      <Width>156.45992mm</Width>
       <Page>
         <PageFooter>
           <Height>11.43mm</Height>
